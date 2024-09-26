@@ -1,0 +1,145 @@
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> The main module with only required outputs
+
+
+// >>>>>>>>>>>>>>>>>>>>> TOP(MAIN) MODULE
+
+module asynchronous_fifo(data_in,write_clk,write_enable,read_clk,read_enable,reset,underflow,overflow,full,empty,data_out);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input write_clk,write_enable,read_clk,read_enable,reset;
+input[data_width-1:0] data_in;
+output underflow,overflow;
+output[data_width-1:0] data_out;
+
+wire [address_width-1:0] write_ptr_bin,read_ptr_bin,write_ptr_gray_sync,read_ptr_gray_sync,write_ptr_gray,read_ptr_gray;
+output full,empty;
+
+wire [address_width-1:0] write_ptr_gray_sync,read_ptr_gray_sync;
+
+fifo_memory memory(data_in,reset,write_enable,write_clk,read_enable,read_clk,write_ptr_bin,read_ptr_bin,full,empty,underflow,overflow,data_out);
+write_controller con1(write_clk,write_enable,reset,read_ptr_gray_sync,full,write_ptr_bin,write_ptr_gray);
+read_controller con2(read_clk,read_enable,reset,write_ptr_gray_sync,empty,read_ptr_bin,read_ptr_gray);
+synchronizer write_synchronizer(write_ptr_gray,read_clk,reset,write_ptr_gray_sync);
+synchronizer read_synchronizer(read_ptr_gray,write_clk,reset,read_ptr_gray_sync);
+endmodule
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> FIFO MEMORY
+
+module fifo_memory(data_in,reset,write_enable,write_clk,read_enable,read_clk,write_ptr_bin,read_ptr_bin,full,empty,underflow,overflow,data_out);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input write_clk,write_enable,read_clk,read_enable,reset;
+input full,empty;
+input [address_width-1:0] write_ptr_bin,read_ptr_bin;
+input[data_width-1:0] data_in;
+output reg underflow,overflow;
+output reg[data_width-1:0] data_out;
+
+reg[data_width-1:0] memory[2*fifo_depth-1:0];
+
+genvar k;
+generate for(k=2*fifo_depth-1;k >= 0; k = k - 1) begin
+always@(posedge reset)
+begin
+memory[k] <= 8'd0;
+end
+always@(posedge write_clk)
+begin
+if(write_enable && ~full) begin overflow <= 0; memory[write_ptr_bin] <= data_in; end
+else if(write_enable && full) overflow <= 1;
+else if(~write_enable) overflow <= 0;
+end
+end endgenerate
+
+always@(posedge read_clk)
+begin
+if(read_enable && ~empty) begin underflow <= 0; data_out <= memory[read_ptr_bin]; end 
+else if(read_enable && empty) begin underflow <= 1; end
+else if(~read_enable) begin underflow <= 0; end
+end
+
+endmodule
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> WRITE CONTROLLER
+
+module write_controller(write_clk,write_enable,reset,read_ptr_gray_sync,full,write_ptr_bin,write_ptr_gray);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input write_clk,reset,write_enable;
+input [address_width-1:0] read_ptr_gray_sync;
+output wire full;
+output reg [address_width-1:0] write_ptr_bin;
+output [address_width-1:0] write_ptr_gray;
+
+binary_to_gray_converter b_to_g_write(write_ptr_bin,write_ptr_gray);
+
+assign full = ((write_ptr_gray[address_width-1] != read_ptr_gray_sync[address_width-1]) && (write_ptr_gray[address_width-2] !=  read_ptr_gray_sync[address_width-2]) && (write_ptr_gray[address_width-3:0] == read_ptr_gray_sync[address_width-3:0]));
+
+always@(posedge reset)
+begin
+write_ptr_bin <= 0;
+end
+
+always@(posedge write_clk)
+begin
+if(write_enable && ~full) write_ptr_bin <= write_ptr_bin + 1;
+end
+
+endmodule
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> READ CONTROLLER
+
+module read_controller(read_clk,read_enable,reset,write_ptr_gray_sync,empty,read_ptr_bin,read_ptr_gray);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input read_clk,reset,read_enable;
+input [address_width-1:0] write_ptr_gray_sync;
+output empty;
+output reg[address_width-1:0] read_ptr_bin;
+output [address_width-1:0] read_ptr_gray;
+
+binary_to_gray_converter b_to_g_read(read_ptr_bin,read_ptr_gray);
+
+assign empty = (read_ptr_gray[address_width-1:0] == write_ptr_gray_sync[address_width-1:0]);
+
+always@(posedge reset)
+begin
+read_ptr_bin <= 0;
+end
+
+always@(posedge read_clk)
+begin
+if(read_enable && ~empty) read_ptr_bin <= read_ptr_bin + 1;
+end
+
+endmodule
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> SYNCHRONIZER 
+
+module synchronizer(in,clk,reset,out);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input [address_width-1:0] in;
+output [address_width-1:0] out;
+input clk,reset;
+reg [1:0] ff[address_width-1:0];
+
+genvar i;
+generate for(i = address_width-1; i>=0; i=i-1) begin
+always@(posedge reset)
+begin
+ff[i] <= 2'd0;
+end
+always@(posedge clk)
+begin
+ff[i][1] <= in[i];
+ff[i][0] <= ff[i][1];
+end
+assign out[i] = ff[i][0];
+end endgenerate
+
+endmodule
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> BINARY TO GRAY CODE CONVERTER
+
+module binary_to_gray_converter(binary,gray);
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+input[address_width-1:0] binary;
+output[address_width-1:0] gray;
+assign gray = binary ^ (binary >> 1);
+endmodule

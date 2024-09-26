@@ -1,0 +1,97 @@
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>> test bench for module with required outputs
+
+// >>>>>>>>>>>>>>>> write_clk freq > read_clk freq
+
+//module testbench;
+//parameter data_width = 8, fifo_depth = 8, address_width = 4;
+//reg [data_width-1:0] data_in;
+//reg write_clk,write_enable,read_clk,read_enable,reset;
+//wire underflow,overflow;
+//wire [data_width-1:0] data_out;
+//wire full,empty;
+
+//asynchronous_fifo DUT(data_in,write_clk,write_enable,read_clk,read_enable,reset,underflow,overflow,full,empty,data_out);
+
+//always #5 write_clk = ~write_clk;
+//always #8 read_clk = ~read_clk;
+
+//initial begin 
+//write_clk = 0;
+//read_clk = 0;
+//reset = 1;
+//#9 write_enable = 1;reset =0; read_enable=1;data_in = 8'd156;
+//#10 data_in = 8'd167;
+//#10 data_in = 8'd173;
+//#10 data_in = 8'd189;
+//#10 data_in = 8'd190;
+//#10 data_in = 8'd204;
+//#10 data_in = 8'd216;
+//#10 data_in = 8'd229;
+//#10 data_in = 8'd239;
+//#10 data_in = 8'd245;
+//#10 data_in = 8'd254;
+//#10 data_in = 8'd38;
+//#10 data_in = 8'd46;
+//#10 data_in = 8'd57;
+//#10 data_in = 8'd63;
+//#10 data_in = 8'd75;
+//#10 data_in = 8'd84;
+//#10 data_in = 8'd96;
+//#10 data_in = 8'd107;
+//#10 data_in = 8'd118;
+//#10 data_in = 8'd129;
+//#10 data_in = 8'd138;
+//#10 data_in = 8'd140;
+//#50 write_enable = 0; 
+//#150 $finish;
+//end
+//endmodule
+
+
+// >>>>>>>>>>>>>>>>>>>>>>>>> read_clk freq > write_clk freq
+
+module testbench;
+parameter data_width = 8, fifo_depth = 8, address_width = 4;
+reg [data_width-1:0] data_in;
+reg write_clk,write_enable,read_clk,read_enable,reset;
+wire underflow,overflow;
+wire [data_width-1:0] data_out;
+wire full,empty;
+
+asynchronous_fifo DUT(data_in,write_clk,write_enable,read_clk,read_enable,reset,underflow,overflow,full,empty,data_out);
+
+always #8 write_clk = ~write_clk;
+always #5 read_clk = ~read_clk;
+
+initial begin 
+write_clk = 0;
+read_clk = 0;
+reset = 1;
+#9 write_enable = 1;reset =0; read_enable=1;data_in = 8'd156;
+#10 data_in = 8'd167;
+#10 data_in = 8'd173;
+#10 data_in = 8'd189;
+#10 data_in = 8'd190;
+#10 data_in = 8'd204;
+#10 data_in = 8'd216;
+#10 data_in = 8'd229;
+#10 data_in = 8'd239;
+#10 data_in = 8'd245;
+#10 data_in = 8'd254;
+#10 data_in = 8'd38;
+#10 data_in = 8'd46;
+#10 data_in = 8'd57;
+#10 data_in = 8'd63;
+#10 data_in = 8'd75;
+#10 data_in = 8'd84;
+#10 data_in = 8'd96;
+#10 data_in = 8'd107;
+#10 data_in = 8'd118;
+#10 data_in = 8'd129;
+#10 data_in = 8'd138;
+#10 data_in = 8'd140;
+#50 write_enable = 0; 
+#100 $finish;
+end
+endmodule
+
